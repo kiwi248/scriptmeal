@@ -4,7 +4,7 @@ import '../models/chat_model.dart';
 
 class ApiService {
   // ── 서버 주소 (필요 시 수정) ──────────────────────────────────
-  static const String _baseUrl = 'http://localhost:8000';
+  static const String _baseUrl = 'http://10.0.2.2:8000';
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;

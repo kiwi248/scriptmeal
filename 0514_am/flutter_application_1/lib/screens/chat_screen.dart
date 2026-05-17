@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import '../models/chat_model.dart';
 import '../services/api_service.dart';
 import '../widgets/chat_bubble.dart';
-import '../widgets/debug_panel.dart';
 import '../widgets/status_badge.dart';
 
 class ChatScreen extends StatefulWidget {
