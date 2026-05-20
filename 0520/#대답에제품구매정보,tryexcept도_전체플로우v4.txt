@@ -1,0 +1,156 @@
+레시피 대답할 때 사용된 제품구매정보도 추가
+LLM이 JSON형식 안 지킬 때를 대비해 try ~ except ~ 구조로 대답
+
+누들핏 짜파구리 다이어트 짜장면
+
+재료: 농심 누들핏 짜파구리, 양파, 양배추, 돼지고기 50g
+조리법:
+1. 누들핏을 끓는 물에 3분간 조리 후 물기 제거
+2. 팬에 양파, 양배추 볶기
+3. 동봉 분말 절반만 사용해 칼로리 절감
+...
+
+---
+🛒 사용된 제품 구매 정보
+농심 누들핏 짜파구리 135kcal | 약 9,010원 | 쿠팡
+곰곰 제로슈가 스테비아 400g | 약 3,670원 | 쿠팡
+
+import json
+from tavily import TavilyClient
+
+tavily_client = TavilyClient(api_key="your-tavily-api-key")
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_recipe",
+            "description": "모르는 음식이나 최신 유행 음식 레시피를 검색할 때 사용",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"}
+                },
+                "required": ["query"]
+            }
+        }
+    }
+]
+
+def get_recipe(user_query, chat_history):
+
+    # 1단계: 유저 쿼리 임베딩
+    query_embedding = openai.embeddings.create(
+        model="text-embedding-3-small", #임베딩모델
+        input=user_query
+    ).data[0].embedding
+
+    # 2단계: pgvector로 관련 제품 Top 5 조회
+    products = db.query("""
+        SELECT p.id, p.brand, p.product_name, p.calories
+        FROM product_embeddings pe
+        JOIN products p ON pe.product_id = p.id
+        ORDER BY pe.embedding <=> %s
+        LIMIT 5
+    """, query_embedding)
+
+    system_prompt = f"""
+        당신은 다이어트 레시피 챗봇입니다.
+        아래 시판 제품 후보 중 적합한 1~2개를 골라 사용하세요.
+        나머지 재료는 일반 신선재료로 채우세요.
+        모르는 음식이거나 최신 유행 음식이면
+        반드시 search_recipe tool을 먼저 호출하세요.
+
+        반드시 아래 JSON 형식으로만 응답하세요:
+        {{
+            "recipe_text": "레시피 제목, 재료, 상세조리과정",
+            "used_product_ids": [1, 3]
+        }}
+
+        [사용 가능한 시판 제품]
+        {products}
+    """
+
+    # 3단계: LLM 첫 번째 호출
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",
+        tools=tools,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            *chat_history,
+            {"role": "user", "content": user_query}
+        ]
+    )
+
+    # 4단계: tool 호출 여부 분기
+    if response.choices[0].message.tool_calls:
+        tool_call = response.choices[0].message.tool_calls[0]
+        search_query = json.loads(tool_call.function.arguments)["query"]
+
+        # Tavily 검색
+        search_result = tavily_client.search(search_query)
+
+        # 검색 결과 포함해서 LLM 재호출
+        response = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"""
+                    당신은 다이어트 레시피 챗봇입니다.
+                    아래 검색된 레시피를 참고해서
+                    시판 제품을 활용한 다이어트 버전으로 재구성하세요.
+                    
+                    반드시 아래 JSON 형식으로만 응답하세요:
+                    {{
+                        "recipe_text": "레시피 내용...",
+                        "used_product_ids": [1, 3]
+                    }}
+
+                    [검색된 레시피 참고]
+                    {search_result}
+
+                    [사용 가능한 시판 제품]
+                    {products}
+                """},
+                *chat_history,
+                {"role": "user", "content": user_query}
+            ]
+        )
+ 
+    # 5단계: 응답 파싱
+    try:
+        recipe = json.loads(response.choices[0].message.content)
+        # 파싱 성공하면 정상 진행 ✅
+
+    except json.JSONDecodeError:
+        # 파싱 실패해도 챗봇이 터지지 않고
+        return "레시피 생성 중 오류가 발생했습니다. 다시 시도해주세요."
+        # 유저한테 에러 메시지 반환 ✅
+
+    # 6단계: 실제 사용된 제품만 구매 정보 조회
+    used_ids = recipe["used_product_ids"]
+    product_details = db.query("""
+        SELECT brand, product_name, calories, price_range, retailers
+        FROM products
+        WHERE id = ANY(%s)
+    """, [used_ids])
+
+    # 7단계: 챗봇 응답 포맷 구성
+    product_info_text = "\n".join([
+        f"{p['brand']} {p['product_name']} {p['calories']}kcal | 약 {p['price_range']} | {', '.join(p['retailers'])}"
+        for p in product_details
+    ])
+
+    final_response = f"""
+{recipe['recipe_text']}
+
+---
+🛒 사용된 제품 구매 정보
+{product_info_text}
+    """.strip()
+
+    return final_response
+
+
+
+
+
