@@ -93,9 +93,13 @@ products = [
 ]
 
 conn = psycopg2.connect(
-    host="localhost", port=5432,
-    dbname="mydb", user="myuser", password="mypassword"
+    host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT"),
+    dbname=os.getenv("DB_NAME"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD")
 )
+
 register_vector(conn)
 cur = conn.cursor()
 
