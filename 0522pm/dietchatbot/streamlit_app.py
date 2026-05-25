@@ -30,26 +30,26 @@ EXAMPLE_PROMPTS = [
 
 # ── 백엔드 호출 ───────────────────────────────────────────────────────────────
 def call_backend(message: str, history: list[dict]) -> dict:
-    print(f"📌 백엔드 호출 시작 - 메시지: {message}")
+    print(f"🔴 백엔드 호출 시작 - 메시지: {message}")
     resp = requests.post(
         f"{BACKEND_URL}/api/chat",
         json={"message": message, "history": history},
         timeout=60,
     )
     resp.raise_for_status()
-    print(f"📌 백엔드 호출 완료 - 응답: {resp.json()}")
+    print(f"🔴 백엔드 호출 완료 - 응답: {resp.json()}")
     return resp.json()
 
 
 # ── 응답 텍스트 파싱: 레시피 / 제품정보 분리 ─────────────────────────────────
 def split_reply(reply: str) -> tuple[str, str | None]:
     """'---' 구분선 기준으로 레시피 본문과 제품 정보를 분리."""
-    print(f"📌 split_reply 실행 - 입력: {reply[:30]}")
+    print(f"🟠 split_reply 실행 - 입력: {reply[:30]}")
     if "\n---\n" in reply:
         recipe, products = reply.split("\n---\n", 1)
-        print("📌 레시피/제품정보 분리 완료")
+        print("🟠 레시피/제품정보 분리 완료")
         return recipe.strip(), products.strip()
-    print("📌 제품정보 없음 - 레시피만 반환")
+    print("🟠 제품정보 없음 - 레시피만 반환")
     return reply.strip(), None
 
 
