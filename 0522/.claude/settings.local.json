@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($file = Get-Item \"D:\\\\scriptmeal\\\\0522\\\\backup.sql\"; Write-Host \"File size: $\\($file.Length\\) bytes\"; Get-Content \"D:\\\\scriptmeal\\\\0522\\\\backup.sql\" -Head 100)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\scriptmeal\\\\0522\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object FullName)"
+    ]
+  }
+}
