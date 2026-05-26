@@ -3,16 +3,15 @@
 """
 
 import os
+import json
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from openai import OpenAI
 
 from backend.schemas import ChatRequest, ChatResponse
 from backend.agents.orchestrator import classify_intent
 from backend.agents.specific_food_agent import SpecificFoodAgent
 from backend.agents.weather_recipe_agent import WeatherRecipeAgent
-
-import json
-from fastapi.responses import StreamingResponse  
 
 router = APIRouter(prefix="/api")
 
@@ -32,6 +31,7 @@ def _get_client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
+# ── 기존 엔드포인트 (스웨거 테스트용으로 유지) ───────────────────────────────
 @router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     print(f"🟡 요청 수신 - 메시지: {request.message}")
@@ -50,38 +50,47 @@ def chat(request: ChatRequest) -> ChatResponse:
         reply = SpecificFoodAgent(client).run(request.message, history)
         print(f"🟢🍖 SpecificFoodAgent 실행 완료 - 응답: {reply[:30]}")
     elif intent == "GENERAL_RECIPE":
-        print("🟢☀️ GENERAL_RECIPE면 WeatherRecipeAgent 실행 시작")
+        print("🟢☀️ WeatherRecipeAgent 실행 시작")
         reply = WeatherRecipeAgent(client).run(request.message, history)
         print(f"🟢☀️ WeatherRecipeAgent 실행 완료 - 응답: {reply[:30]}")
     else:
         print("🟢 OFF_TOPIC 응답 반환")
         reply = OFF_TOPIC_REPLY
 
-    print(f"🔵 최종 응답 반환 완료-reply: {reply} intent: {intent}")
+    print(f"🔵 최종 응답 반환 완료 - intent: {intent}, reply: {reply[:30]}")
     return ChatResponse(reply=reply, intent=intent)
 
+
+# ── 스트리밍 엔드포인트 (실제 서비스용) ─────────────────────────────────────
 @router.post("/chat/stream")
 def chat_stream(request: ChatRequest):
+    print(f"🟡 [STREAM] 요청 수신 - 메시지: {request.message}")
+
     client = _get_client()
     history = [{"role": m.role, "content": m.content} for m in request.history]
+
     intent = classify_intent(client, request.message, history)
+    print(f"🟢 [STREAM] 의도 분류 완료 - intent: {intent}")
 
     def generate():
         # intent 먼저 전송
         yield f"data: {json.dumps({'type': 'intent', 'value': intent})}\n\n"
 
         if intent == "SPECIFIC_FOOD":
-            #SpecificFoodAgent는 스트리밍 없이 완성 후 한 번에 전송
+            print("🟢🍖 [STREAM] SpecificFoodAgent 실행 시작")
             reply = SpecificFoodAgent(client).run(request.message, history)
+            print(f"🟢🍖 [STREAM] SpecificFoodAgent 완료 - 응답: {reply[:60]}")
             yield f"data: {json.dumps({'type': 'done', 'value': reply})}\n\n"
-            
+
         elif intent == "GENERAL_RECIPE":
-            # WeatherRecipeAgent는 스트리밍
+            print("🟢☀️ [STREAM] WeatherRecipeAgent 스트리밍 시작")
             for chunk in WeatherRecipeAgent(client).run_stream(request.message, history):
                 yield f"data: {json.dumps({'type': 'chunk', 'value': chunk})}\n\n"
+            print("🟢☀️ [STREAM] WeatherRecipeAgent 스트리밍 완료")
             yield f"data: {json.dumps({'type': 'done', 'value': ''})}\n\n"
 
         else:
+            print("🟢 [STREAM] OFF_TOPIC 응답 반환")
             yield f"data: {json.dumps({'type': 'done', 'value': OFF_TOPIC_REPLY})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
