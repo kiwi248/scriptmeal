@@ -43,16 +43,16 @@ def chat(request: ChatRequest) -> ChatResponse:
     print(f"🟢 의도 분류 완료 - intent: {intent}")
 
     if intent == "SPECIFIC_FOOD":
-        print("🔵 SpecificFoodAgent 실행 시작")
+        print("🟢🍖 SpecificFoodAgent 실행 시작")
         reply = SpecificFoodAgent(client).run(request.message, history)
-        print(f"🔵 SpecificFoodAgent 실행 완료 - 응답: {reply[:30]}")
+        print(f"🟢🍖 SpecificFoodAgent 실행 완료 - 응답: {reply[:30]}")
     elif intent == "GENERAL_RECIPE":
-        print("🟣 WeatherRecipeAgent 실행 시작")
+        print("🟢☀️ GENERAL_RECIPE면 WeatherRecipeAgent 실행 시작")
         reply = WeatherRecipeAgent(client).run(request.message, history)
-        print(f"🟣 WeatherRecipeAgent 실행 완료 - 응답: {reply[:30]}")
+        print(f"🟢☀️ WeatherRecipeAgent 실행 완료 - 응답: {reply[:30]}")
     else:
-        print("⚫ OFF_TOPIC 응답 반환")
+        print("🟢 OFF_TOPIC 응답 반환")
         reply = OFF_TOPIC_REPLY
 
-    print(f"🔴 최종 응답 반환 완료-reply: {reply} intent: {intent}")
+    print(f"🔵 최종 응답 반환 완료-reply: {reply} intent: {intent}")
     return ChatResponse(reply=reply, intent=intent)

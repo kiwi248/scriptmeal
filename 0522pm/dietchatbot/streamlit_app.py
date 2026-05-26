@@ -16,7 +16,7 @@ BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 # ── 의도 뱃지 매핑 ────────────────────────────────────────────────────────────
 INTENT_META = {
     "SPECIFIC_FOOD":  {"label": "특정 음식",  "icon": "🍖", "color": "#2563eb"},
-    "GENERAL_RECIPE": {"label": "조건 기반",  "icon": "🥗", "color": "#16a34a"},
+    "GENERAL_RECIPE": {"label": "조건 기반",  "icon": "☀️", "color": "#16a34a"},
     "OFF_TOPIC":      {"label": "주제 외",    "icon": "💬", "color": "#9ca3af"},
 }
 
