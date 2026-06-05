@@ -56,7 +56,7 @@ def save_favorite(body: RecordCreate, response: Response):
         check.close()
 
         if existing_id:
-            response.status_code = 200  # 중복이면 200 반환
+            raise HTTPException(status_code=400, detail="이미 즐겨찾기에 저장된 항목입니다.")
         
         return db.save_favorite(
             body.session_id, body.user_message, body.recipe_reply, body.intent
