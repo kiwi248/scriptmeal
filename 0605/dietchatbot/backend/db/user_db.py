@@ -83,14 +83,28 @@ class UserDB:
     # ── 즐겨찾기 ───────────────────────────────────────────────────────────────
 
     def save_favorite(self, session_id: str, user_message: str, recipe_reply: str, intent: str) -> dict:
-        sql = """
+        # 중복 체크
+        check_sql = """
+            SELECT id, session_id, user_message, recipe_reply, intent, created_at
+            FROM favorites
+            WHERE session_id = %s AND user_message = %s AND recipe_reply = %s
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(check_sql, (session_id, user_message, recipe_reply))
+            row = cur.fetchone()
+            if row:
+                print(f"🗄️ 즐겨찾기 중복 - 기존 레코드 반환 id: {row[0]}")
+                return self._to_dict(cur, row)
+
+        # 중복 없으면 INSERT
+        insert_sql = """
             INSERT INTO favorites (session_id, user_message, recipe_reply, intent)
             VALUES (%s, %s, %s, %s)
             RETURNING id, session_id, user_message, recipe_reply, intent, created_at
         """
         print(f"🗄️ 즐겨찾기 INSERT - session: {session_id[:8]}, intent: {intent}")
         with self.conn.cursor() as cur:
-            cur.execute(sql, (session_id, user_message, recipe_reply, intent))
+            cur.execute(insert_sql, (session_id, user_message, recipe_reply, intent))
             self.conn.commit()
             row = self._to_dict(cur, cur.fetchone())
             print(f"🗄️ 즐겨찾기 INSERT 완료 - id: {row['id']}")

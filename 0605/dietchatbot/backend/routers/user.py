@@ -8,7 +8,7 @@ GET  /api/favorites     - 즐겨찾기 조회 (?session_id=xxx)
 DELETE /api/favorites/{id} - 즐겨찾기 삭제
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from backend.schemas import RecordCreate, RecordResponse
 from backend.db.user_db import get_user_db
 
@@ -42,10 +42,23 @@ def get_history(session_id: str = Query(..., description="세션 ID")):
 # ── 즐겨찾기 ───────────────────────────────────────────────────────────────────
 
 @router.post("/favorites", response_model=RecordResponse, status_code=201)
-def save_favorite(body: RecordCreate):
+def save_favorite(body: RecordCreate, response: Response):
     print(f"🛜 POST /favorites - session: {body.session_id[:8]}, intent: {body.intent}")
     try:
-        return get_user_db().save_favorite(
+        db = get_user_db()
+        # 중복 체크 먼저
+        check = db.conn.cursor()
+        check.execute(
+            "SELECT id FROM favorites WHERE session_id=%s AND user_message=%s AND recipe_reply=%s",
+            (body.session_id, body.user_message, body.recipe_reply)
+        )
+        existing_id = check.fetchone()
+        check.close()
+
+        if existing_id:
+            response.status_code = 200  # 중복이면 200 반환
+        
+        return db.save_favorite(
             body.session_id, body.user_message, body.recipe_reply, body.intent
         )
     except Exception as e:
