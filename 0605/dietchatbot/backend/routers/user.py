@@ -61,6 +61,8 @@ def save_favorite(body: RecordCreate, response: Response):
         return db.save_favorite(
             body.session_id, body.user_message, body.recipe_reply, body.intent
         )
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"🛜❌ /favorites 저장 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
