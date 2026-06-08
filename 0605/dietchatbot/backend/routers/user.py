@@ -38,6 +38,19 @@ def get_history(session_id: str = Query(..., description="세션 ID")):
         print(f"🛜❌ /history 조회 오류: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.delete("/history/{history_id}")
+def delete_history(history_id: int):
+    print(f"🛜 DELETE /history/{history_id}")
+    try:
+        deleted = get_user_db().delete_history(history_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="히스토리를 찾을 수 없습니다.")
+        return {"message": "삭제되었습니다."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"🛜❌ /history 삭제 오류: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ── 즐겨찾기 ───────────────────────────────────────────────────────────────────
 # POST /favorites

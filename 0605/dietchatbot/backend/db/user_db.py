@@ -80,6 +80,15 @@ class UserDB:
             print(f"🗄️ 히스토리 SELECT 완료 - {len(rows)}건")
             return rows
 
+    def delete_history(self, history_id: int) -> bool:
+        print(f"🗄️ 히스토리 DELETE - id: {history_id}")
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM recipe_history WHERE id = %s RETURNING id", (history_id,))
+            self.conn.commit()
+            result = cur.fetchone() is not None
+            print(f"🗄️ 히스토리 DELETE 완료 - 삭제됨: {result}")
+            return result
+
     # ── 즐겨찾기 ───────────────────────────────────────────────────────────────
 
     def save_favorite(self, session_id: str, user_message: str,
