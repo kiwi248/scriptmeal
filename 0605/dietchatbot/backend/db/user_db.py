@@ -82,10 +82,11 @@ class UserDB:
 
     # ── 즐겨찾기 ───────────────────────────────────────────────────────────────
 
-    def save_favorite(self, session_id: str, user_message: str, recipe_reply: str, intent: str) -> dict:
-        # 중복 체크
+    def save_favorite(self, session_id: str, user_message: str,
+                      recipe_reply: str, intent: str,
+                      history_id: int | None = None) -> dict:   # ← 추가
         check_sql = """
-            SELECT id, session_id, user_message, recipe_reply, intent, created_at
+            SELECT id, session_id, user_message, recipe_reply, intent, history_id, created_at
             FROM favorites
             WHERE session_id = %s AND user_message = %s AND recipe_reply = %s
         """
@@ -93,36 +94,28 @@ class UserDB:
             cur.execute(check_sql, (session_id, user_message, recipe_reply))
             row = cur.fetchone()
             if row:
-                print(f"🗄️ 즐겨찾기 중복 - 기존 레코드 반환 id: {row[0]}")
                 return self._to_dict(cur, row)
 
-        # 중복 없으면 INSERT
         insert_sql = """
-            INSERT INTO favorites (session_id, user_message, recipe_reply, intent)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, session_id, user_message, recipe_reply, intent, created_at
+            INSERT INTO favorites (session_id, user_message, recipe_reply, intent, history_id)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, session_id, user_message, recipe_reply, intent, history_id, created_at
         """
-        print(f"🗄️ 즐겨찾기 INSERT - session: {session_id[:8]}, intent: {intent}")
         with self.conn.cursor() as cur:
-            cur.execute(insert_sql, (session_id, user_message, recipe_reply, intent))
+            cur.execute(insert_sql, (session_id, user_message, recipe_reply, intent, history_id))
             self.conn.commit()
-            row = self._to_dict(cur, cur.fetchone())
-            print(f"🗄️ 즐겨찾기 INSERT 완료 - id: {row['id']}")
-            return row
+            return self._to_dict(cur, cur.fetchone())
 
     def get_favorites(self, session_id: str) -> list[dict]:
         sql = """
-            SELECT id, session_id, user_message, recipe_reply, intent, created_at
+            SELECT id, session_id, user_message, recipe_reply, intent, history_id, created_at
             FROM favorites
             WHERE session_id = %s
             ORDER BY created_at DESC
         """
-        print(f"🗄️ 즐겨찾기 SELECT - session: {session_id[:8]}")
         with self.conn.cursor() as cur:
             cur.execute(sql, (session_id,))
-            rows = [self._to_dict(cur, row) for row in cur.fetchall()]
-            print(f"🗄️ 즐겨찾기 SELECT 완료 - {len(rows)}건")
-            return rows
+            return [self._to_dict(cur, row) for row in cur.fetchall()]
 
     def delete_favorite(self, favorite_id: int) -> bool:
         print(f"🗄️ 즐겨찾기 DELETE - id: {favorite_id}")

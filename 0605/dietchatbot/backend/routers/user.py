@@ -9,8 +9,8 @@ DELETE /api/favorites/{id} - 즐겨찾기 삭제
 """
 
 from fastapi import APIRouter, HTTPException, Query, Response
-from backend.schemas import RecordCreate, RecordResponse
 from backend.db.user_db import get_user_db
+from backend.schemas import RecordCreate, RecordResponse, FavoriteCreate, FavoriteResponse
 
 router = APIRouter(prefix="/api", tags=["user"])
 
@@ -40,13 +40,12 @@ def get_history(session_id: str = Query(..., description="세션 ID")):
 
 
 # ── 즐겨찾기 ───────────────────────────────────────────────────────────────────
-
-@router.post("/favorites", response_model=RecordResponse, status_code=201)
-def save_favorite(body: RecordCreate, response: Response):
+# POST /favorites
+@router.post("/favorites", response_model=FavoriteResponse, status_code=201)  # ← response_model 교체
+def save_favorite(body: FavoriteCreate, response: Response):                   # ← body 타입 교체
     print(f"🛜 POST /favorites - session: {body.session_id[:8]}, intent: {body.intent}")
     try:
         db = get_user_db()
-        # 중복 체크 먼저
         check = db.conn.cursor()
         check.execute(
             "SELECT id FROM favorites WHERE session_id=%s AND user_message=%s AND recipe_reply=%s",
@@ -57,9 +56,10 @@ def save_favorite(body: RecordCreate, response: Response):
 
         if existing_id:
             raise HTTPException(status_code=400, detail="이미 즐겨찾기에 저장된 항목입니다.")
-        
+
         return db.save_favorite(
-            body.session_id, body.user_message, body.recipe_reply, body.intent
+            body.session_id, body.user_message, body.recipe_reply,
+            body.intent, body.history_id   # ← history_id 전달
         )
     except HTTPException:
         raise
@@ -68,7 +68,7 @@ def save_favorite(body: RecordCreate, response: Response):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/favorites", response_model=list[RecordResponse])
+@router.get("/favorites", response_model=list[FavoriteResponse])
 def get_favorites(session_id: str = Query(..., description="세션 ID")):
     print(f"🛜 GET /favorites - session: {session_id[:8]}")
     try:

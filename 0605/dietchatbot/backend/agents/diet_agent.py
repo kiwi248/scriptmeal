@@ -22,10 +22,14 @@ import math
 import requests
 from datetime import datetime, timedelta
 from typing import Generator
+import zoneinfo
 
 from openai import OpenAI
 from tavily import TavilyClient
 from backend.db.product_db import get_db
+
+#-----한국시간설정--------------------------------------------------------------
+KST = zoneinfo.ZoneInfo("Asia/Seoul")
 
 # ── 기상청 설정 ────────────────────────────────────────────────────────────────
 KMA_API_KEY = os.environ.get("KMA_API_KEY", "")
@@ -377,7 +381,7 @@ class DietAgent:
     def _get_weather_recipe(self) -> str:
         """tool3: 기상청 날씨 + 현재 날짜/시간 컨텍스트 반환"""
         temp, weather = self._fetch_weather()
-        now  = datetime.now()
+        now  = datetime.now(tz=KST)
         hour = now.hour
 
         if   5  <= hour < 10: meal_time = "아침 식사"
@@ -448,7 +452,7 @@ class DietAgent:
         return nx, ny
 
     def _fetch_weather(self) -> tuple[float, str]:
-        now = datetime.now()
+        now = datetime.now(tz=KST)
         if now.minute < 10:
             now -= timedelta(hours=1)
         nx, ny = self._latlon_to_grid(self.lat, self.lon)
